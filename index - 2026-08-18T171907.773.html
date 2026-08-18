@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Envios</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#0f1117;--panel:#171a23;--panel2:#1e222e;--border:#2a2f3d;--txt:#e6e8ee;--txt2:#9aa3b2;--accent:#3b82f6;--ok:#22c55e;--late:#f87171;--warn:#fbbf24;--info:#60a5fa;--purple:#a855f7;--g-id:#3b82f6;--g-ana:#a855f7;--g-peso:#22c55e;--g-fat:#f59e0b;--g-ent:#06b6d4;--zebra:rgba(255,255,255,.02)}
+[data-theme="light"]{--bg:#f4f5f8;--panel:#fff;--panel2:#eef1f6;--border:#d8dde6;--txt:#1a1d26;--txt2:#5a6474;--zebra:rgba(0,0,0,.025)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt);font-size:13px;display:flex;flex-direction:column;height:100vh}
+/* LOGIN */
+.login{flex:1;display:flex;align-items:center;justify-content:center}
+.login-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:32px;width:min(380px,92vw)}
+.login-box h2{font-size:18px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.login-box p{color:var(--txt2);font-size:12px;margin-bottom:20px}
+.login-box label{display:block;font-size:11px;color:var(--txt2);text-transform:uppercase;margin:12px 0 4px}
+.login-box input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:11px;border-radius:8px}
+.login-box button{width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:8px;font-weight:600;cursor:pointer;margin-top:18px}
+.login-err{color:var(--late);font-size:12px;margin-top:12px;min-height:16px}
+/* APP */
+.topbar{background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+.tb-row{display:flex;align-items:center;justify-content:space-between;padding:11px 22px}
+.brand{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.tb-tools{display:flex;gap:10px;align-items:center}
+.search{background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px 14px;border-radius:8px;width:180px}
+.whoami{font-size:12px;color:var(--txt2);background:var(--panel2);border:1px solid var(--border);padding:6px 12px;border-radius:20px}
+.whoami b{color:var(--txt)}
+.tbtn{background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px 12px;border-radius:8px;cursor:pointer}
+.topnav{display:flex;gap:4px;padding:0 16px;overflow-x:auto}
+.topnav a{padding:12px 16px;color:var(--txt2);cursor:pointer;border-bottom:3px solid transparent;font-weight:500;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.topnav a.active{color:var(--txt);border-bottom-color:var(--accent)}
+.topnav a:hover{color:var(--txt)}
+.main{flex:1;padding:18px 22px;overflow:hidden;display:flex;flex-direction:column}
+.view-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:12px}
+.view-head h1{font-size:19px;font-weight:600}
+.view-head p{color:var(--txt2);font-size:12px;margin-top:2px}
+.datebar{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border);padding:8px 12px;border-radius:10px}
+.datebar label{font-size:11px;color:var(--txt2);text-transform:uppercase}
+.datebar input{background:var(--panel2);border:1px solid var(--accent);color:var(--txt);padding:7px 10px;border-radius:7px}
+.dowtag{font-size:11px;font-weight:700;color:var(--accent)}
+.chips{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.chip{font-size:11px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--panel);color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none}
+.chip .d{width:8px;height:8px;border-radius:2px}.chip.off{opacity:.4;text-decoration:line-through}
+.grid-wrap{flex:1;overflow:auto;border:1px solid var(--border);border-radius:12px;background:var(--panel)}
+table{border-collapse:separate;border-spacing:0;width:100%;white-space:nowrap;font-size:12px}
+th,td{padding:6px 10px;text-align:center;border-bottom:1px solid var(--border);border-right:1px solid var(--border)}
+td.lft,th.lft{text-align:left}
+table.tbl-est,table.tbl-fin{width:auto}
+.grid-wrap.fit{flex:0 1 auto;align-self:center;width:fit-content;max-width:100%;max-height:100%}
+.wfil{width:56px}
+.wdest{width:188px;max-width:188px}
+.wdestf{width:230px;max-width:230px}
+.wsm{width:88px}
+.wq{width:104px}
+.wnum{width:74px}
+.wnf{width:104px;max-width:104px}
+.wdata{width:80px}
+.wfat{width:110px}
+.wdest,.wdestf{white-space:normal}
+.grp-th{text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#fff;cursor:pointer;position:sticky;top:0;z-index:6}
+.grp-th span{opacity:.7;font-size:9px;margin-left:4px}
+.g-id{background:var(--g-id)}.g-ana{background:var(--g-ana)}.g-peso{background:var(--g-peso)}.g-fat{background:var(--g-fat)}.g-ent{background:var(--g-ent)}
+thead tr.sub th{position:sticky;top:25px;z-index:5;background:var(--panel2);color:var(--txt);font-size:10px;font-weight:700;text-transform:uppercase}
+thead tr.solo th{position:sticky;top:0;z-index:5;background:var(--panel2);color:var(--txt2);font-size:10px;font-weight:600;text-transform:uppercase}
+.freeze{position:sticky;left:0;z-index:4;background:var(--panel);max-width:190px;white-space:normal}
+th.freeze{z-index:7;background:var(--panel2)}
+tbody tr:nth-child(even) .freeze{background:var(--panel)}
+tbody tr:hover td{background:var(--panel2)}
+tbody tr:nth-child(even) td{background:var(--zebra)}
+td.calc{background:transparent}
+.dest{font-weight:600}.sub-row td{background:rgba(168,85,247,.04)}
+.subtag{color:var(--purple);margin-right:4px}.princ{color:var(--warn);margin-right:4px}
+.badge{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.b-ok{background:rgba(34,197,94,.15);color:var(--ok)}.b-late{background:rgba(248,113,113,.15);color:var(--late)}
+.b-fat{background:rgba(245,158,11,.15);color:var(--warn)}.b-info{background:rgba(96,165,250,.15);color:var(--info)}
+.b-off{background:rgba(154,163,178,.12);color:var(--txt2)}.b-purple{background:rgba(168,85,247,.15);color:var(--purple)}
+.money{font-variant-numeric:tabular-nums}
+.ci{width:100%;min-width:44px;text-align:center;background:transparent;border:1px solid transparent;color:var(--txt);padding:3px 4px;border-radius:5px;font-size:12px;font-variant-numeric:tabular-nums}
+.ci:hover{border-color:var(--border);background:var(--panel2)}.ci:focus{border-color:var(--accent);background:var(--panel2);outline:none}
+.ci.num{text-align:center}.ci.txt{text-align:left}select.ci{cursor:pointer}
+.fixrow td{background:transparent}
+.fixname{font-weight:700;color:var(--txt)}
+.subst{cursor:help;color:var(--purple);margin-left:5px;font-size:11px}
+.qbtn{background:var(--panel2);border:1px solid var(--accent);color:var(--txt);padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;margin-left:6px}
+.xbtn{cursor:pointer;color:var(--txt2);font-size:11px;padding:1px 4px;border-radius:4px}
+.xbtn:hover{color:var(--late);background:var(--panel2)}
+.anasel{font-weight:600;text-align:center;text-align-last:center;-webkit-appearance:none;appearance:none;padding-right:4px}
+select.anasel:hover,select.anasel:focus{-webkit-appearance:auto;appearance:auto;padding-right:18px}
+.wqt{width:52px}
+.wnfa{width:120px}
+.wana{width:152px}
+.wtr{width:200px}
+.wdr{width:124px}
+.wrast{width:150px}
+.wqa{width:70px}
+.rotxt{font-weight:500}
+.st-transit{background:rgba(234,179,8,.16);color:#c99a1e}
+.st-ok{background:rgba(34,197,94,.18);color:#22c55e}
+.st-late{background:rgba(239,68,68,.15);color:#e08a8a}
+.xdel{cursor:pointer;color:var(--txt2);font-size:11px;padding:1px 4px;border-radius:4px;opacity:0;transition:opacity .12s}
+tr:hover .xdel{opacity:1}
+.xdel:hover{color:var(--late);background:var(--panel2)}
+.lockbtn{cursor:pointer;font-size:12px;margin-left:4px}
+.toggle{display:inline-flex;border:1px solid var(--border);border-radius:20px;overflow:hidden;cursor:pointer}
+.toggle span{padding:3px 12px;font-size:11px;font-weight:700;color:var(--txt2)}
+.toggle .on{color:#fff}.toggle .yes.on{background:var(--ok)}.toggle .no.on{background:var(--late)}
+.dow{display:inline-flex;gap:3px}
+.dow b{width:26px;text-align:center;padding:3px 0;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid var(--border);color:var(--txt2)}
+.dow b.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:14px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:13px}
+.kpi .n{font-size:22px;font-weight:700}.kpi .l{font-size:11px;color:var(--txt2);text-transform:uppercase;margin-top:2px}
+.hint{font-size:12px;color:var(--txt2);background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent);padding:10px 14px;border-radius:8px;margin-bottom:12px}
+.grpsep td{background:var(--panel2);font-weight:700;font-size:11px;text-transform:uppercase;color:var(--txt2);padding:6px 10px}
+.iconbtn{background:transparent;border:none;color:var(--late);cursor:pointer;font-size:14px}
+.empty{color:var(--txt2);padding:20px;text-align:center}
+.btn{background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:30;align-items:center;justify-content:center}
+.modal.open{display:flex}
+.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px;width:min(460px,92vw)}
+.modal-box h3{margin-bottom:6px}
+.fld label{display:block;font-size:11px;color:var(--txt2);text-transform:uppercase;margin-bottom:5px}
+.fld select,.fld input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:9px;border-radius:6px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--txt);padding:9px 16px;border-radius:8px;cursor:pointer}
+.loading{color:var(--txt2);padding:30px;text-align:center}
+</style>
+</head>
+<body data-theme="dark">
+
+<!-- LOGIN -->
+<div class="login" id="loginScreen">
+  <div class="login-box">
+    <h2>📦 Controle de Envios</h2>
+    <p>Entre com seu e-mail e senha.</p>
+    <label>E-mail</label>
+    <input type="email" id="email" autocomplete="username">
+    <label>Senha</label>
+    <input type="password" id="senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">Entrar</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;flex-direction:column;height:100vh">
+  <header class="topbar">
+    <div class="tb-row">
+      <div class="brand">📦 Controle de Envios</div>
+      <div class="tb-tools">
+        <input class="search" id="search" placeholder="Buscar..." oninput="render()">
+        <span class="whoami" id="whoami"></span>
+        <button class="tbtn" onclick="toggleTheme()">🌓</button>
+        <button class="tbtn" onclick="doLogout()">Sair</button>
+      </div>
+    </div>
+    <nav class="topnav" id="topnav"></nav>
+  </header>
+  <main class="main" id="main"></main>
+</div>
+
+<div class="modal" id="modaltt">
+  <div class="modal-box">
+    <h3>Transportadora por tipo</h3>
+    <p style="color:var(--txt2);font-size:12px;margin-bottom:14px" id="ttnome"></p>
+    <div id="ttbody"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="fecharTranspTipo()">Cancelar</button>
+      <button class="btn" onclick="salvarTranspTipo()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalq">
+  <div class="modal-box">
+    <h3 id="qtitle">Adicionar avulso</h3>
+    <p style="color:var(--txt2);font-size:12px;margin-bottom:14px">Adiciona envios pontuais na data selecionada, sem cadastrar fixo. Marque um ou vários pontos.</p>
+    <div class="fld" style="margin-bottom:10px"><label>Tipo</label><select id="qtipo"><option>Quotes</option><option>Extra</option><option>Bateria</option></select></div>
+    <input class="search" id="qbusca" placeholder="Filtrar destino..." style="width:100%;margin-bottom:8px" oninput="filtraQ()">
+    <div id="qlista" style="max-height:38vh;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:6px"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="fecharQuotesAvulso()">Cancelar</button>
+      <button class="btn" onclick="addAvulso()">Adicionar marcados</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== CONFIG ===================== */
+const SUPABASE_URL = "https://fevhyllvfhvzzfhwyjuk.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZldmh5bGx2Zmh2enpmaHd5anVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzEyMTcsImV4cCI6MjA5NDQ0NzIxN30.GJRgEKW1bVWX1957_bKCTO6aVmR_rXWRCmo9-ZJDPiE";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+/* ===================== ESTADO ===================== */
+const DOWLBL=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const ENVIOS_TIPO=["Semanal","Quotes","Extra","Bateria"];
+const TODAY=new Date();
+const isoLocal=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const HOJE=isoLocal(TODAY), ONTEM=isoLocal(new Date(TODAY.getTime()-86400000));
+const dow=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d).getDay();};
+
+let perfil=null;           // {id, nome, papel}
+let TRANSP={};             // {nome:prazo}
+let destinos=[];           // cadastro (memória)
+let envios=[];             // CACHE de envios em memória (janela de 90 dias)
+let active="admin", selDate=HOJE, finDate=HOJE, custoDate=HOJE, collapsed={};
+let syncing=false;
+let ANALISTAS=[];
+const JANELA=isoLocal(new Date(TODAY.getTime()-90*86400000));
+
+/* ===================== AUTH ===================== */
+async function boot(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(session) await onLogged(); else showLogin();
+}
+function showLogin(){document.getElementById("loginScreen").style.display="flex";document.getElementById("app").style.display="none";}
+async function doLogin(){
+  const email=document.getElementById("email").value.trim();
+  const senha=document.getElementById("senha").value;
+  const err=document.getElementById("loginErr"); err.textContent="";
+  const {error}=await sb.auth.signInWithPassword({email,password:senha});
+  if(error){err.textContent="E-mail ou senha inválidos.";return;}
+  await onLogged();
+}
+async function doLogout(){await sb.auth.signOut();location.reload();}
+async function onLogged(){
+  const {data:{user}}=await sb.auth.getUser();
+  const {data:p,error}=await sb.from('env_perfis').select('*').eq('id',user.id).single();
+  if(error||!p){document.getElementById("loginErr").textContent="Usuário sem perfil definido. Fale com o admin.";await sb.auth.signOut();showLogin();return;}
+  perfil=p;
+  document.getElementById("loginScreen").style.display="none";
+  document.getElementById("app").style.display="flex";
+  document.getElementById("whoami").innerHTML=`<b>${perfil.nome||user.email}</b> · ${perfil.papel}`;
+  // aba inicial conforme papel
+  if(perfil.papel==="estoque")active="estoque";
+  else if(perfil.papel==="financeiro")active="fatur";
+  else active="admin";
+  await loadBase();
+  if(perfil.papel==='admin') await ensureEnvios(HOJE);
+  iniciarRealtime();
+  carregarCards();
+  render();
+}
+let rtTimer=null;
+function agendarSync(){clearTimeout(rtTimer);rtTimer=setTimeout(async()=>{await refreshEnvios(true);drawView();},350);}
+function iniciarRealtime(){
+  try{
+    sb.channel('env-rt')
+      .on('postgres_changes',{event:'*',schema:'public',table:'env_envios'},()=>agendarSync())
+      .on('postgres_changes',{event:'*',schema:'public',table:'env_destinos'},async()=>{const d=await sb.from('env_destinos').select('*').order('ordem').order('id');if(d.data){destinos=d.data;ANALISTAS=[...new Set(destinos.map(x=>x.analista).filter(Boolean))].sort();}agendarSync();})
+      .subscribe();
+  }catch(e){}
+  setInterval(()=>syncBg(),15000);   // rede de segurança caso o realtime não esteja habilitado
+}
+
+/* ===================== DADOS ===================== */
+async function loadBase(){
+  const t=await sb.from('env_transportadoras').select('*');
+  TRANSP={}; (t.data||[]).forEach(x=>TRANSP[x.nome]=x.prazo_dias);
+  const d=await sb.from('env_destinos').select('*').order('ordem').order('id');
+  destinos=d.data||[];
+  ANALISTAS=[...new Set(destinos.map(x=>x.analista).filter(Boolean))].sort();
+  await refreshEnvios(true);
+}
+// baixa a janela de envios para o cache (usado no login e no sync em 2º plano)
+async function refreshEnvios(force){
+  const {data}=await sb.from('env_envios').select('*').gte('data',JANELA).order('data',{ascending:false}).order('id');
+  if(!data) return false;
+  const agora=Date.now(), locais={}; envios.forEach(r=>locais[r.id]=r);
+  const merged=data.map(r=>{
+    const loc=locais[r.id];
+    if(loc && loc._touched && agora-loc._touched<4000) return loc;   // preserva edição recente (evita clarão)
+    const d=destinos.find(x=>x.id===r.dest_id); if(d){r.grupo=d.grupo; r.eh_principal=!!d.eh_principal;}
+    return r;
+  });
+  const antes=JSON.stringify(envios); envios=merged; return force || antes!==JSON.stringify(envios);
+}
+// sincroniza em 2º plano SEM travar a tela; só redesenha se algo mudou
+async function syncBg(){
+  if(syncing)return; syncing=true;
+  try{ if(await refreshEnvios(false)) drawView(); }catch(e){} finally{ syncing=false; }
+}
+async function logAcao(acao){
+  try{await sb.from('env_log').insert({quem_nome:perfil.nome,papel:perfil.papel,acao});}catch(e){}
+}
+// gera envios que faltam para uma data (só admin tem permissão de insert)
+async function ensureEnvios(data){
+  if(perfil.papel!=='admin')return;
+  if(data<HOJE)return;   // dia passado só mostra o que existe, nunca gera
+  const wd=dow(data);
+  const alvo=destinos.filter(d=>(d.dias||[]).includes(wd));
+  if(!alvo.length)return;
+  // fonte de verdade = banco (evita duplicar por causa do cache)
+  const ex=await sb.from('env_envios').select('dest_id,envio').eq('data',data);
+  const existentes=new Set((ex.data||[]).map(r=>r.dest_id+'|'+r.envio));
+  const novos=alvo.filter(d=>!existentes.has(d.id+'|'+d.envio)).map(d=>({
+    dest_id:d.id,data,filial:d.filial,dest:d.nome,grupo:d.grupo,eh_principal:d.eh_principal,
+    envio:d.envio,analista:d.analista,analista_fixo:d.analista,transp:transpDe(d,d.envio),prazo:prazoDe(d,d.envio),quotes:false
+  }));
+  if(novos.length){
+    const {data:ins}=await sb.from('env_envios').upsert(novos,{onConflict:'dest_id,data,envio',ignoreDuplicates:true}).select();
+    if(ins&&ins.length){ ins.forEach(x=>{if(!envios.some(e=>e.id===x.id))envios.push(x);}); await logAcao(`gerou ${ins.length} envios para ${fmt(data)}`); }
+  }
+}
+// edição otimista: muda o cache e a tela na hora, salva no banco em 2º plano
+async function updateEnv(id,patch,acaoTxt){
+  const r=envios.find(x=>x.id===id); if(!r)return false;
+  const antes={}; Object.keys(patch).forEach(k=>antes[k]=r[k]);
+  r._touched=Date.now(); Object.assign(r,patch); drawView();   // instantâneo
+  const {error}=await sb.from('env_envios').update(patch).eq('id',id);
+  if(error){ Object.assign(r,antes); drawView(); alert("Bloqueado: "+error.message); return false; }
+  if(acaoTxt) logAcao(acaoTxt);                        // não bloqueia
+  return true;
+}
+
+/* ===================== CÁLCULOS ===================== */
+const destOf=id=>destinos.find(d=>d.id===id)||{};
+const destOrdem=r=>{const d=destOf(r.dest_id);return d.fixo?-1000+(d.ordem||0):(d.ordem||9999);};
+const ehFixo=r=>!!destOf(r.dest_id).fixo;
+const transpDe=(d,tipo)=>(d&&d.transp_map&&d.transp_map[tipo])||(d?d.transp:null);
+const prazoDe=(d,tipo)=>{const pm=d&&d.prazo_map;if(pm&&pm[tipo]!=null)return pm[tipo];const t=transpDe(d,tipo);return TRANSP[t]??0;};
+function ordenar(list){return list.slice().sort((a,b)=>destOrdem(a)-destOrdem(b)||a.id-b.id);}
+function prazo(r){if(r.prazo!=null&&r.prazo!=='')return +r.prazo;const d=destOf(r.dest_id);const pm=d&&d.prazo_map;if(pm&&pm[r.envio]!=null)return pm[r.envio];return TRANSP[r.transp]??0;}
+// líquido: tara por caixa. caixa <=10kg abate 100g; caixa >10kg abate 1kg. classifica pelo peso médio.
+function liq(vol,bruto){vol=+vol||0;bruto=+bruto||0;if(vol<=0||bruto<=0)return 0;const media=bruto/vol;const tara=media>10?1:0.1;return +(bruto-vol*tara).toFixed(2);}
+const membros=(g,data)=>envios.filter(r=>r.grupo===g&&r.data===data);
+const principal=(g,data)=>envios.find(r=>r.grupo===g&&r.eh_principal&&r.data===data);
+function principalDef(g,data){const p=principal(g,data);return !!(p&&p.vol!=null&&p.bruto!=null);}   // fechado quando vol E bruto foram informados (inclusive 0)
+function consol(g,data){const m=membros(g,data);const vol=m.reduce((s,r)=>s+(+r.vol||0),0);const bruto=+m.reduce((s,r)=>s+(+r.bruto||0),0).toFixed(2);return{vol,bruto,liq:liq(vol,bruto),pontos:m.length};}
+function previsao(r){if(!r.data||prazo(r)===0)return"";const[y,m,d]=r.data.split('-').map(Number);const dt=new Date(y,m-1,d);dt.setDate(dt.getDate()+prazo(r));return isoLocal(dt);}
+function atraso(r){const p=previsao(r);if(!p||!r.entrega)return null;return Math.round((new Date(r.entrega+'T00:00')-new Date(p+'T00:00'))/86400000);}
+function status(r){if(!r.entrega)return{t:"EM TRÂNSITO",c:"b-info"};const a=atraso(r);if(a!==null&&a>0)return{t:"ATRASADA",c:"b-late"};return{t:"ENTREGUE",c:"b-ok"};}
+function statusEnvio(r){if(r.entrega)return{t:'ENTREGUE',c:'st-ok'};const p=previsao(r);if(p&&HOJE>p)return{t:'ATRASADO',c:'st-late'};return{t:'EM TRÂNSITO',c:'st-transit'};}
+function situacao(r){if(r.nf)return{t:"FATURADO",c:"b-fat"};if(principalDef(r.grupo,r.data))return{t:"LIBERADO",c:"b-ok"};return{t:"AGUARDANDO",c:"b-info"};}
+const brl=v=>"R$ "+(+v||0).toFixed(2).replace(".",",");
+const fmt=d=>d?d.split("-").reverse().join("/"):"—";
+const busca=l=>{const q=(document.getElementById("search").value||"").toLowerCase();return l.filter(r=>((r.dest||r.nome||"")+(r.filial||"")+(r.nf||"")+(r.analista||"")+(r.grupo||"")).toLowerCase().includes(q));};
+
+/* ===================== NAV (por papel) ===================== */
+const ALLTABS=[
+  {key:"admin",label:"Administrativo",icon:"🚚",papeis:["admin"]},
+  {key:"destinos",label:"Destinos",icon:"🏬",papeis:["admin"]},
+  {key:"estoque",label:"Estoque",icon:"📥",papeis:["admin","estoque"]},
+  {key:"fatur",label:"Financeiro",icon:"🧾",papeis:["admin","financeiro"]},
+  {key:"analistas",label:"Analistas",icon:"👤",papeis:["admin"]},
+  {key:"hist",label:"Custos",icon:"💰",papeis:["admin"]},
+  {key:"log",label:"Log",icon:"🕓",papeis:["admin"]},
+  {key:"transp",label:"Transportadoras",icon:"⚙️",papeis:["admin"]},
+];
+function tabs(){return ALLTABS.filter(t=>t.papeis.includes(perfil.papel));}
+function renderNav(){document.getElementById("topnav").innerHTML=tabs().map(t=>`<a class="${active===t.key?'active':''}" onclick="go('${t.key}')">${t.icon} ${t.label}</a>`).join("");}
+function go(k){if(!tabs().some(t=>t.key===k))return;active=k;render();}
+
+/* ===================== ROUTER ===================== */
+// render = desenha do cache (instantâneo) + sincroniza em 2º plano
+function render(){
+  const main=document.getElementById("main");
+  const gw=main?main.querySelector('.grid-wrap'):null; const sTop=gw?gw.scrollTop:0; const wY=window.scrollY;
+  renderNav(); drawView(); if(active!=='log') syncBg();
+  const rest=()=>{const g=document.getElementById("main")?.querySelector('.grid-wrap'); if(g&&sTop)g.scrollTop=sTop; if(wY)window.scrollTo(0,wY);};
+  rest(); requestAnimationFrame(rest);
+}
+function drawView(){
+  const main=document.getElementById("main");
+  const gw=main.querySelector('.grid-wrap'); const sTop=gw?gw.scrollTop:0; const wY=window.scrollY;
+  try{
+    if(active==="admin")drawAdmin(main);
+    else if(active==="destinos")viewDestinos(main);
+    else if(active==="estoque")drawEstoque(main);
+    else if(active==="fatur")drawFatur(main);
+    else if(active==="analistas")drawAnalistas(main);
+    else if(active==="hist")drawHist(main);
+    else if(active==="log")viewLog(main);   // log busca do banco (não é cache)
+    else if(active==="transp")viewTransp(main);
+  }catch(e){main.innerHTML='<div class="empty">Erro: '+e.message+'</div>';}
+  const rest=()=>{const g=main.querySelector('.grid-wrap'); if(g&&sTop)g.scrollTop=sTop; if(wY)window.scrollTo(0,wY);};
+  rest(); requestAnimationFrame(rest); setTimeout(rest,0);
+}
+
+/* ---- inline helpers ---- */
+function inp(id,campo,val,type){return `<input class="ci ${type==='number'?'num':'txt'}" type="${type||'text'}" value="${val??''}" onchange="editEnv(${id},'${campo}',this.value)">`;}
+function selInp(id,campo,val,opts){return `<select class="ci" onchange="editEnv(${id},'${campo}',this.value)">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join("")}</select>`;}
+function selAnalista(id,val){const opts=[...new Set([val,...ANALISTAS].filter(Boolean))];return `<select class="ci anasel" onchange="editEnv(${id},'analista',this.value)">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join("")}</select>`;}
+async function editEnv(id,campo,val){
+  let v=val; if(['qtd','ana','custo'].includes(campo))v=parseFloat((val+"").replace(",","."))||0;
+  const r=envios.find(x=>x.id===id);
+  if(campo==='vol'||campo==='bruto'){
+    const raw=(val+'').trim();
+    v = raw==='' ? null : (parseFloat(raw.replace(',','.'))||0);
+  }
+  const patch={}; patch[campo]=v;
+  if(campo==='vol'||campo==='bruto'){
+    const other = campo==='vol' ? (r?r.bruto:null) : (r?r.vol:null);
+    const ambosVazios = (v===null) && (other===null||other===undefined);
+    patch.pesado_em = ambosVazios ? null : new Date().toISOString();
+  }
+  if(campo==='entrega'){
+    const dv = v ? v : null;
+    await updateEnv(id,{entrega:dv},`entrega real de "${r?r.dest:id}" → ${dv||'—'}`);
+    if(r&&r.eh_principal){for(const sub of envios.filter(x=>x.grupo===r.grupo&&x.data===r.data&&!x.eh_principal)){await updateEnv(sub.id,{entrega:dv});}}
+    return;
+  }
+  // financeiro lançando NF -> marca faturou
+  if(campo==='nf'){patch.faturou=v?perfil.nome:null;patch.faturado_em=v?new Date().toISOString():null;}
+  // trocar o TIPO de envio puxa a transportadora daquele tipo (se cadastrada)
+  if(campo==='envio'){const d=destOf(r.dest_id);const t=transpDe(d,v);if(t)patch.transp=t;}
+  // substituição de analista do dia
+  if(campo==='analista'){
+    const fixo=r?r.analista_fixo:null;
+    if(v && fixo && v!==fixo){
+      const m=prompt(`Substituição: ${v} no lugar de ${fixo}.\nMotivo (atestado, férias, folga...):`,'')||'';
+      patch.substituicao_motivo=m;
+      await updateEnv(id,patch,`SUBSTITUIÇÃO em "${r.dest}": ${v} no lugar de ${fixo}${m?' ('+m+')':''}`);
+      return;
+    } else { patch.substituicao_motivo=null; }
+  }
+  await updateEnv(id,patch,`editou ${campo} de "${r?r.dest:id}" → ${v}`);
+}
+
+/* ===================== VIEW ADMIN ===================== */
+const GROUPS=[{key:"id",label:"Identificação",cls:"g-id",cols:["Filial","Destino","Envio"]},{key:"ana",label:"Análise",cls:"g-ana",cols:["Analista","Quotes","QNTD ITENS","QNTD ANALISADA"]},{key:"peso",label:"Pesagem",cls:"g-peso",cols:["Vol","Líquido","Bruto"]},{key:"fat",label:"Faturamento",cls:"g-fat",cols:["Situação","Nota Fiscal"]},{key:"ent",label:"Entrega",cls:"g-ent",cols:["Transportadora","Rastreio","Prazo","Status","Previsão de chegada","Data real entrega"]}];
+function chaveCards(){return 'cards_'+(perfil?perfil.id:'anon');}
+function carregarCards(){try{const v=localStorage.getItem(chaveCards());collapsed=v?JSON.parse(v):{};}catch(e){collapsed={};}}
+function salvarCards(){try{localStorage.setItem(chaveCards(),JSON.stringify(collapsed));}catch(e){}}
+function toggleGroup(k){collapsed[k]=!collapsed[k];salvarCards();render();}
+function drawAdmin(main){
+  const list=ordenar(busca(envios.filter(r=>r.data===selDate))).sort((a,b)=>(a.cancelado?1:0)-(b.cancelado?1:0));
+  const wd=DOWLBL[dow(selDate)];
+  let chips=`<div class="chips">`+GROUPS.map(g=>`<div class="chip ${collapsed[g.key]?'off':''}" onclick="toggleGroup('${g.key}')"><span class="d" style="background:var(--${g.cls})"></span>${g.label}</div>`).join("")+`</div>`;
+  let h1='<thead><tr>';GROUPS.forEach(g=>{const s=collapsed[g.key]?1:g.cols.length;h1+=`<th class="grp-th ${g.cls}" colspan="${s}" onclick="toggleGroup('${g.key}')">${g.label}<span>${collapsed[g.key]?'▸':'▾'}</span></th>`;});h1+='</tr>';
+  let h2='<tr class="sub">';GROUPS.forEach(g=>{if(collapsed[g.key]){h2+='<th>···</th>';return;}g.cols.forEach(c=>{const wmap={"QNTD ITENS":"wqt","QNTD ANALISADA":"wqa","Nota Fiscal":"wnfa","Analista":"wana","Transportadora":"wtr","Rastreio":"wrast","Data real entrega":"wdr"};h2+=`<th class="${c==='Destino'?'freeze':''} ${wmap[c]||''}">${c}</th>`;});});h2+='</tr></thead>';
+  let body='<tbody>';
+  if(!list.length)body+=`<tr><td colspan="19" class="empty">Nenhum destino sai em ${wd}. Cadastre dias em Destinos ou troque a data.</td></tr>`;
+  list.forEach(r=>{
+    let volT=(r.vol!=null?r.vol:"—"),brutoT=(r.bruto!=null?r.bruto:"—"),liqT;
+    if(r.eh_principal&&principalDef(r.grupo,r.data)){const c=consol(r.grupo,r.data);volT=`<b>${c.vol}</b>`;brutoT=`<b>${c.bruto}</b>`;liqT=`<b>${c.liq}</b> <span class="badge b-purple">Σ${c.pontos}</span>`;}
+    else liqT=(r.vol!=null&&r.bruto!=null)?liq(r.vol,r.bruto):"—";
+    const fixo=ehFixo(r);
+    const mark=fixo?'':(r.eh_principal?`<span class="princ">◆</span>`:`<span class="subtag">└</span>`);
+    const nomeCls=fixo?'fixname':'';
+    const subst=(r.analista_fixo&&r.analista&&r.analista!==r.analista_fixo)?`<span class="subst" title="No lugar de ${r.analista_fixo}${r.substituicao_motivo?' · '+r.substituicao_motivo:''}">🔄</span>`:'';
+    const sit=situacao(r);
+    const st=statusEnvio(r);
+    const cells={"Filial":fixo?`<b>${r.filial||''}</b>`:r.filial,"Destino":`<span class="dest ${nomeCls}" style="${r.cancelado?'text-decoration:line-through;opacity:.5':''}">${r.dest}</span> <span class="xdel" title="${r.cancelado?'reativar':'não saiu hoje'}" onclick="toggleCancel(${r.id})">${r.cancelado?'↺':'✕'}</span>`,"Envio":r.envio,"Analista":selAnalista(r.id,r.analista)+subst,"Quotes":r.quotes?'<span class="badge b-ok">SIM</span>':'<span class="badge b-off">NÃO</span>',"QNTD ITENS":inp(r.id,'qtd',r.qtd,'number'),"QNTD ANALISADA":inp(r.id,'ana',r.ana,'number'),"Vol":volT,"Bruto":brutoT,"Líquido":liqT,"Situação":`<span class="badge ${sit.c}">${sit.t}</span>`,"Nota Fiscal":r.nf||"—","Transportadora":`<span class="rotxt">${r.transp||'—'}</span>`,"Rastreio":`<input class="ci" style="min-width:96px;text-align:center" type="text" value="${r.rastreio||''}" placeholder="código" onchange="editEnv(${r.id},'rastreio',this.value)">${r.rastreio?`<span class="lockbtn" title="copiar código e abrir o site" onclick="abrirRastreio(${r.id})">🔗</span>`:''}`,"Prazo":prazo(r)||"—","Status":`<span class="badge ${st.c}">${st.t}</span>`,"Previsão de chegada":fmt(previsao(r)),"Data real entrega":inp(r.id,'entrega',r.entrega,'date')};
+    const calc=["Vol","Bruto","Líquido","Prazo","Status","Previsão de chegada"];
+    const lft=["Destino"];
+    const wmap={"QNTD ITENS":"wqt","QNTD ANALISADA":"wqa","Nota Fiscal":"wnfa","Analista":"wana","Transportadora":"wtr","Rastreio":"wrast","Data real entrega":"wdr"};
+    body+=`<tr class="${fixo?'fixrow':(r.eh_principal?'':'sub-row')}">`;
+    GROUPS.forEach(g=>{if(collapsed[g.key]){body+='<td style="color:var(--txt2)">···</td>';return;}g.cols.forEach(c=>{const fz=c==='Destino'?'freeze':'';const cl=calc.includes(c)?'calc':'';const lf=lft.includes(c)?'lft':'';const w=wmap[c]||'';body+=`<td class="${fz} ${cl} ${lf} ${w}">${cells[c]}</td>`;});});
+    body+='</tr>';
+  });
+  body+='</tbody>';
+  main.innerHTML=`<div class="view-head"><div><h1>Administrativo</h1><p>◆ principal · └ sub. Edite direto na célula. Peso vem do estoque.</p></div><div class="datebar"><label>Data de saída</label><input type="date" value="${selDate}" onchange="setSaida(this.value)"><span class="dowtag">${wd}</span><span class="badge b-info">${list.length} destinos</span><button class="qbtn" onclick="abrirQuotesAvulso('Quotes')">+ Quotes</button><button class="qbtn" onclick="abrirExtraAvulso()">+ Extra</button><button class="qbtn" onclick="abrirQuotesAvulso('Bateria')">+ Bateria</button></div></div>${chips}<div class="grid-wrap"><table>${h1+h2+body}</table></div>`;
+}
+async function setSaida(v){selDate=v;render();await ensureEnvios(v);drawView();}
+async function toggleCancel(id){const r=envios.find(x=>x.id===id);const novo=!r.cancelado;if(novo&&!confirm(`Marcar "${r.dest}" como NÃO SAIU hoje? (não apaga, some das telas ativas)`))return;await updateEnv(id,{cancelado:novo},novo?`marcou "${r.dest}" como não saiu`:`reativou "${r.dest}"`);}
+
+/* ===================== VIEW DESTINOS ===================== */
+function viewDestinos(main){
+  let body='<tbody>';
+  destinos.forEach(d=>{
+    const dc=DOWLBL.map((l,i)=>`<b class="${(d.dias||[]).includes(i)?'on':''}" onclick="toggleDia(${d.id},${i})">${l}</b>`).join("");
+    body+=`<tr>
+      <td><input class="ci" value="${d.filial||''}" onchange="setDest(${d.id},'filial',this.value)"></td>
+      <td><input class="ci" style="min-width:200px" value="${d.nome||''}" onchange="setDest(${d.id},'nome',this.value)"></td>
+      <td><input class="ci" style="min-width:60px" value="${d.grupo||''}" onchange="setDest(${d.id},'grupo',this.value)"></td>
+      <td><div class="toggle" onclick="togglePrinc(${d.id})"><span class="yes ${d.eh_principal?'on':''}">PRINC</span><span class="no ${!d.eh_principal?'on':''}">SUB</span></div></td>
+      <td><div class="dow">${dc}</div></td>
+      <td><input class="ci" value="${d.analista||''}" onchange="setDest(${d.id},'analista',this.value)"></td>
+      <td>${selDest(d.id,'envio',d.envio,ENVIOS_TIPO)}</td>
+      <td style="text-align:center"><button class="iconbtn" onclick="delDest(${d.id})">🗑</button></td></tr>`;
+  });
+  body+='</tbody>';
+  main.innerHTML=`<div class="view-head"><div><h1>Cadastro de Destinos</h1><p>Dias de saída, principal/sub e ordem. A tela Administrativa puxa por aqui.</p></div><button class="btn" onclick="addDest()">+ Destino</button></div>
+  <div class="hint">A ordem das linhas é a ordem no administrativo. Clique nas letras pra marcar os dias.</div>
+  <div class="grid-wrap"><table><thead><tr class="solo"><th>Filial</th><th>Destino</th><th>Grupo</th><th>Tipo</th><th>Dias</th><th>Analista</th><th>Envio</th><th></th></tr></thead>${body}</table></div>`;
+}
+function selDest(id,campo,val,opts){return `<select class="ci" onchange="setDest(${id},'${campo}',this.value)">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join("")}</select>`;}
+async function setDest(id,campo,val){const patch={};patch[campo]=val;await sb.from('env_destinos').update(patch).eq('id',id);const d=destinos.find(x=>x.id===id);if(d)d[campo]=val;await logAcao(`editou destino (${campo})`);}
+async function toggleDia(id,i){const d=destinos.find(x=>x.id===id);const dias=(d.dias||[]).includes(i)?d.dias.filter(x=>x!==i):[...(d.dias||[]),i];await sb.from('env_destinos').update({dias}).eq('id',id);d.dias=dias;await logAcao(`ajustou dias de "${d.nome}"`);render();}
+async function editDestTransp(id,val){
+  const d=destinos.find(x=>x.id===id); if(!d)return;
+  const map=Object.assign({},d.transp_map||{}); map['Semanal']=val;   // "Transp." = Semanal
+  d.transp=val; d.transp_map=map;
+  await sb.from('env_destinos').update({transp:val,transp_map:map}).eq('id',id);
+  for(const e of envios.filter(x=>x.dest_id===id)){const nt=map[e.envio]||val; if(nt&&nt!==e.transp){e.transp=nt;await sb.from('env_envios').update({transp:nt}).eq('id',e.id);}}
+  await logAcao(`transportadora de "${d.nome}" = ${val}`); drawView();
+}
+async function togglePrinc(id){const d=destinos.find(x=>x.id===id);await sb.from('env_destinos').update({eh_principal:!d.eh_principal}).eq('id',id);d.eh_principal=!d.eh_principal;render();}
+async function addDest(){const {data}=await sb.from('env_destinos').insert({nome:"NOVO DESTINO",eh_principal:false,dias:[],envio:"Semanal",ordem:destinos.length}).select().single();if(data){destinos.push(data);await logAcao('adicionou destino');render();}}
+async function delDest(id){const d=destinos.find(x=>x.id===id);if(!confirm("Excluir "+d.nome+"?"))return;await sb.from('env_destinos').delete().eq('id',id);destinos=destinos.filter(x=>x.id!==id);await logAcao(`excluiu destino "${d.nome}"`);render();}
+
+/* ===================== VIEW ESTOQUE ===================== */
+function drawEstoque(main){
+  const list=ordenar(busca(envios.filter(r=>r.data===HOJE&&!r.cancelado)));
+  let body='<tbody>';
+  if(!list.length)body+=`<tr><td colspan="7" class="empty">Nenhum envio hoje.</td></tr>`;
+  list.forEach(r=>{
+    const fixo=ehFixo(r);
+    const bloq = r.pesado_em && (Date.now()-new Date(r.pesado_em).getTime()>60000) && !unlocked[r.id];
+    const volCel = bloq ? `${r.vol!=null?r.vol:'—'}` : inp(r.id,'vol',r.vol??'','number');
+    const brutoCel = bloq ? `${r.bruto!=null?r.bruto:'—'}` : inp(r.id,'bruto',r.bruto??'','number');
+    const lock = bloq ? ` <span class="lockbtn" title="Travado — liberar com senha do gestor" onclick="pedirLiberacao(${r.id})">🔒</span>`
+                      : (r.pesado_em&&unlocked[r.id] ? ` <span class="lockbtn" title="liberado pelo gestor">🔓</span>` : '');
+    body+=`<tr class="${fixo?'fixrow':''}">
+      <td>${fixo?'<b>'+(r.filial||'')+'</b>':r.filial}</td>
+      <td class="dest lft ${fixo?'fixname':''}">${r.dest}${lock}</td>
+      <td>${r.envio}</td>
+      <td><div class="toggle" onclick="${bloq?'':`setQuotes(${r.id},${!r.quotes})`}"><span class="yes ${r.quotes?'on':''}">SIM</span><span class="no ${!r.quotes?'on':''}">NÃO</span></div></td>
+      <td class="wnum">${volCel}</td>
+      <td class="calc wnum">${(r.vol!=null&&r.bruto!=null)?liq(r.vol,r.bruto)+' kg':'—'}</td>
+      <td class="wnum">${brutoCel}</td></tr>`;
+  });
+  body+='</tbody>';
+  main.innerHTML=`<div class="view-head"><div><h1>Estoque · Pesagem do dia</h1><p>Só hoje (${fmt(HOJE)}). Após 1 min sem mexer, o peso trava — só o gestor libera.</p></div></div>
+  <div class="grid-wrap fit"><table class="tbl-est"><thead><tr class="solo"><th class="wfil">Filial</th><th class="lft wdest">Destino</th><th class="wsm">Envio</th><th class="wq">Quotes</th><th class="wnum">Volume</th><th class="wnum">Líquido (kg)</th><th class="wnum">Bruto (kg)</th></tr></thead>${body}</table></div>`;
+}
+let unlocked={};
+async function pedirLiberacao(id){
+  const senha=prompt('Senha do gestor para liberar a edição:');
+  if(senha===null||senha==='')return;
+  try{
+    const {data,error}=await sb.rpc('env_valida_gestor',{senha});
+    if(error){alert('Erro ao validar a senha.');return;}
+    if(data===true){unlocked[id]=true;const r=envios.find(x=>x.id===id);await logAcao(`GESTOR liberou edição travada de "${r?r.dest:id}"`);drawView();}
+    else alert('Senha incorreta.');
+  }catch(e){alert('Erro: '+e.message);}
+}
+async function setQuotes(id,val){const ok=await updateEnv(id,{quotes:val},`marcou Quotes=${val?'SIM':'NÃO'}`);if(ok)render();}
+
+/* ===================== VIEW FINANCEIRO ===================== */
+function drawFatur(main){
+  const alvo=ordenar(busca(envios.filter(r=>!r.cancelado&&r.data===finDate)));
+  let body='<tbody>';
+  if(!alvo.length)body+=`<tr><td colspan="8" class="empty">Nada nesse dia.</td></tr>`;
+  alvo.forEach(r=>{
+    const sit=situacao(r),fixo=ehFixo(r),temPeso=(r.vol!=null&&r.bruto!=null);
+    const def=principalDef(r.grupo,r.data),c=consol(r.grupo,r.data),cons=r.eh_principal&&def;
+    const volC=cons?c.vol:(r.vol||'—');
+    const liqC=cons?('<b>'+c.liq+'</b> kg'):(temPeso?'<b>'+liq(r.vol,r.bruto)+'</b> kg':'—');
+    const brC=cons?(c.bruto+' kg'):(temPeso?(r.bruto+' kg'):'—');
+    const sig=(cons&&c.pontos>1)?` <span class="badge b-purple">Σ${c.pontos}</span>`:'';
+    body+=`<tr class="${fixo?'fixrow':''}"><td class="wdata">${fmt(r.data)}</td>
+      <td class="dest lft ${fixo?'fixname':''}">${r.dest}${sig}</td>
+      <td class="wnum">${volC}</td>
+      <td class="calc wnum">${liqC}</td>
+      <td class="wnum">${brC}</td>
+      <td class="wq"><span class="badge ${sit.c}">${sit.t}</span></td>
+      <td class="wnf">${(sit.t==='LIBERADO'||r.nf)?`<input class="ci" type="text" value="${r.nf??''}" onchange="editEnv(${r.id},'nf',this.value)">`:'<span style="color:var(--txt2)">—</span>'}</td>
+      <td class="wfat">${destOf(r.dest_id).faturador||'—'}</td></tr>`;
+  });
+  body+='</tbody>';
+  const nLib=alvo.filter(r=>situacao(r).t==='LIBERADO').length,nFat=alvo.filter(r=>r.nf).length,nAg=alvo.filter(r=>situacao(r).t==='AGUARDANDO').length;
+  main.innerHTML=`<div class="view-head"><div><h1>Financeiro · Faturamento</h1><p>Cada ponto fatura a sua nota. Principal mostra o peso somado do grupo.</p></div>
+    <div class="datebar"><label>Dia</label><input type="date" value="${finDate}" onchange="setFinDate(this.value)"><span class="dowtag">${DOWLBL[dow(finDate)]}</span></div></div>
+  <div class="cards"><div class="kpi"><div class="n" style="color:var(--ok)">${nLib}</div><div class="l">Liberados</div></div><div class="kpi"><div class="n" style="color:var(--info)">${nAg}</div><div class="l">Aguardando peso</div></div><div class="kpi"><div class="n" style="color:var(--warn)">${nFat}</div><div class="l">Faturados</div></div></div>
+  <div class="grid-wrap fit"><table class="tbl-fin"><thead><tr class="solo"><th class="wdata">Data</th><th class="wdestf">Destino</th><th class="wnum">Vol</th><th class="wnum">Líquido (kg)</th><th class="wnum">Bruto (kg)</th><th class="wq">Situação</th><th class="wnf">Nota Fiscal</th><th class="wfat">Quem faturou</th></tr></thead>${body}</table></div>`;
+}
+function setFinDate(v){finDate=v;drawView();}
+function setCustoDate(v){custoDate=v;drawView();}
+
+/* ===================== VIEW HISTÓRICO / LOG / TRANSP ===================== */
+function drawHist(main){
+  const list=ordenar(busca(envios.filter(r=>r.data===custoDate&&!r.cancelado)));
+  let body='<tbody>';
+  if(!list.length)body+=`<tr><td colspan="4" class="empty">Nenhuma saída nesse dia.</td></tr>`;
+  list.forEach(r=>{
+    const val=(+r.custo||0).toFixed(2).replace('.',',');
+    body+=`<tr>
+      <td class="wdata">${fmt(r.data)}</td>
+      <td class="dest lft">${r.eh_principal?'◆':'└'} ${r.dest}</td>
+      <td class="wsm">${r.envio}</td>
+      <td class="wnum"><input class="ci num" type="text" value="${val}" onchange="editEnv(${r.id},'custo',this.value)"></td></tr>`;
+  });
+  body+='</tbody>';
+  main.innerHTML=`<div class="view-head"><div><h1>Custos</h1><p>Saídas do dia. Preencha o custo de cada envio (subs vêm R$ 0,00, mas dá pra editar).</p></div>
+    <div class="datebar"><label>Dia</label><input type="date" value="${custoDate}" onchange="setCustoDate(this.value)"><span class="dowtag">${DOWLBL[dow(custoDate)]}</span></div></div>
+  <div class="grid-wrap fit"><table class="tbl-fin"><thead><tr class="solo"><th class="wdata">Data</th><th class="wdestf">Destino</th><th class="wsm">Envio</th><th class="wnum">Custo (R$)</th></tr></thead>${body}</table></div>`;
+}
+// monta o link de rastreio por transportadora
+function urlRastreio(transp,cod){
+  const t=(transp||'').toUpperCase();
+  const c=encodeURIComponent(cod);
+  if(t.includes('CORREIOS'))return 'https://rastreamento.correios.com.br/app/index.php?objetos='+c; // Correios preenche pela URL
+  if(t.includes('BRASPRESS'))return 'https://www.braspress.com/';
+  if(t.includes('GOLLOG'))return 'https://servicos.gollog.com.br/app/site/tracking';
+  if(t.includes('JADLOG'))return 'https://www.jadlog.com.br/tracking';
+  return 'https://www.google.com/search?q='+c;
+}
+// copia o código e abre o site da transportadora (SPAs não preenchem pela URL; é só colar/Ctrl+V)
+function abrirRastreio(id){
+  const r=envios.find(x=>x.id===id); if(!r||!r.rastreio)return;
+  const cod=r.rastreio, transp=r.transp||'';
+  try{navigator.clipboard&&navigator.clipboard.writeText(cod);}catch(e){}
+  window.open(urlRastreio(transp,cod),'_blank');
+  if(!transp.toUpperCase().includes('CORREIOS')) toast('Código copiado — cole no campo de busca do site (Ctrl+V).');
+}
+function toast(msg){let el=document.getElementById('toast');if(!el){el=document.createElement('div');el.id='toast';el.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.3)';document.body.appendChild(el);}el.textContent=msg;el.style.opacity='1';clearTimeout(el._t);el._t=setTimeout(()=>{el.style.opacity='0';},3000);}
+async function viewLog(main){
+  const {data}=await sb.from('env_log').select('*').order('quando',{ascending:false}).limit(300);
+  let body='<tbody>';
+  if(!data||!data.length)body+='<tr><td colspan="4" class="empty">Nenhuma ação ainda.</td></tr>';
+  else data.forEach(l=>body+=`<tr><td style="color:var(--txt2)">${new Date(l.quando).toLocaleString('pt-BR')}</td><td class="dest lft">${l.quem_nome||'—'}</td><td><span class="badge b-info">${l.papel||''}</span></td><td>${l.acao||''}</td></tr>`);
+  body+='</tbody>';
+  main.innerHTML=`<div class="view-head"><div><h1>Log de auditoria</h1><p>Cada ação registra quem fez, o perfil e quando.</p></div></div><div class="grid-wrap"><table><thead><tr class="solo"><th>Quando</th><th>Usuário</th><th>Perfil</th><th>Ação</th></tr></thead>${body}</table></div>`;
+}
+function viewTransp(main){
+  const filial=window._tfilial||'';
+  const d=destinos.find(x=>String(x.filial)===String(filial));
+  const tipos=["Semanal","Quotes","Extra","Bateria"];
+  let corpo='';
+  if(d){
+    const tm=d.transp_map||{}, pm=d.prazo_map||{};
+    let rows='';
+    tipos.forEach(t=>{
+      const tv=tm[t]||d.transp||'SEM TRANSPORTADORA';
+      const pv=(pm[t]!=null?pm[t]:(TRANSP[tv]??0));
+      rows+=`<tr>
+        <td class="lft"><b>${t}</b></td>
+        <td><select class="ci" id="tt_${t}">${Object.keys(TRANSP).map(o=>`<option ${o===tv?'selected':''}>${o}</option>`).join("")}</select></td>
+        <td class="wnum"><input class="ci num" id="tp_${t}" type="number" value="${pv}"></td></tr>`;
+    });
+    corpo=`<div class="grid-wrap fit"><table class="tbl-fin" style="max-width:560px"><thead><tr class="solo"><th class="lft">Tipo de envio</th><th>Transportadora</th><th class="wnum">Prazo (dias)</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="margin-top:12px"><button class="qbtn" onclick="salvarTranspFilial(${d.id})">Salvar transportadoras da filial</button></div>`;
+  } else if(filial){
+    corpo=`<div class="empty">Filial não encontrada.</div>`;
+  } else {
+    corpo=`<div class="hint">Selecione uma filial acima para editar as transportadoras e prazos por tipo.</div>`;
+  }
+  const opts=destinos.slice().sort((a,b)=>(a.filial||'').localeCompare(b.filial||'',undefined,{numeric:true}))
+    .map(x=>`<option value="${x.filial}" ${String(x.filial)===String(filial)?'selected':''}>${x.filial} · ${x.nome}</option>`).join("");
+  main.innerHTML=`<div class="view-head"><div><h1>Transportadoras</h1><p>Transportadora e prazo por tipo, por filial. Vale para os próximos envios; o que já saiu fica congelado.</p></div>
+    <div class="datebar"><label>Filial</label><select class="usel" style="padding:6px 8px" onchange="selTFilial(this.value)"><option value="">Selecione a filial</option>${opts}</select></div></div>
+  ${corpo}`;
+}
+function selTFilial(v){window._tfilial=v;drawView();}
+async function salvarTranspFilial(id){
+  const d=destinos.find(x=>x.id===id); if(!d)return;
+  const tipos=["Semanal","Quotes","Extra","Bateria"];
+  const tm=Object.assign({},d.transp_map||{}), pm=Object.assign({},d.prazo_map||{});
+  tipos.forEach(t=>{
+    const sv=document.getElementById('tt_'+t), pv=document.getElementById('tp_'+t);
+    if(sv)tm[t]=sv.value;
+    if(pv)pm[t]=parseInt(pv.value)||0;
+  });
+  const novaTransp=tm['Semanal']||d.transp;
+  await sb.from('env_destinos').update({transp_map:tm,prazo_map:pm,transp:novaTransp}).eq('id',id);
+  d.transp_map=tm; d.prazo_map=pm; d.transp=novaTransp;
+  // atualiza SÓ os envios de HOJE ainda não pesados (em aberto). Passado/pesado fica congelado.
+  for(const e of envios.filter(x=>x.dest_id===id && x.data===HOJE && x.vol==null && !x.nf)){
+    const nt=tm[e.envio]||novaTransp, np=pm[e.envio];
+    const upd={}; if(nt&&nt!==e.transp)upd.transp=nt; if(np!=null&&np!==e.prazo)upd.prazo=np;
+    if(Object.keys(upd).length){Object.assign(e,upd);await sb.from('env_envios').update(upd).eq('id',e.id);}
+  }
+  await logAcao(`atualizou transportadoras/prazos da filial ${d.filial}`);
+  alert('Salvo! Vale para os próximos envios. O histórico ficou intacto.');
+  drawView();
+}
+async function setSla(t,v){const prazo_dias=parseInt(v)||0;await sb.from('env_transportadoras').update({prazo_dias}).eq('nome',t);TRANSP[t]=prazo_dias;await logAcao(`SLA ${t}=${prazo_dias}`);}
+
+/* ===================== VIEW ANALISTAS (soma sempre, por analista e por PDV) ===================== */
+async function drawAnalistas(main){
+  main.innerHTML='<div class="loading">Carregando resumo...</div>';
+  const {data}=await sb.from('env_envios').select('analista,analista_fixo,dest,filial,qtd,ana,vol,bruto');
+  const rows=data||[];
+  // total por analista (efetivo)
+  const porA={};
+  rows.forEach(r=>{if(!r.analista)return;const a=r.analista;(porA[a]=porA[a]||{env:0,ana:0,subs:0}); porA[a].env+=(+r.qtd||0); porA[a].ana+=(+r.ana||0); if(r.analista_fixo&&r.analista&&r.analista!==r.analista_fixo)porA[a].subs++;});
+  const listA=Object.entries(porA).sort((a,b)=>b[1].ana-a[1].ana);
+  // por PDV x analista
+  const porP={};
+  rows.forEach(r=>{if(!r.analista)return;const p=r.dest||'(sem destino)';const a=r.analista;const k=p+'||'+a;(porP[k]=porP[k]||{pdv:p,filial:r.filial,ana2:a,env:0,ana:0}); porP[k].env+=(+r.qtd||0); porP[k].ana+=(+r.ana||0);});
+  const listP=Object.values(porP).sort((a,b)=>a.pdv.localeCompare(b.pdv)||b.ana-a.ana);
+
+  let ta='<tbody>';
+  if(!listA.length)ta+='<tr><td colspan="4" class="empty">Sem dados ainda.</td></tr>';
+  listA.forEach(([a,v])=>{ta+=`<tr><td class="lft dest">${a}</td><td>${v.env}</td><td>${v.ana}</td><td>${v.subs?`<span class="badge b-purple">${v.subs}</span>`:'—'}</td></tr>`;});
+  ta+='</tbody>';
+
+  let tp='<tbody>';
+  if(!listP.length)tp+='<tr><td colspan="4" class="empty">Sem dados ainda.</td></tr>';
+  listP.forEach(v=>{tp+=`<tr><td>${v.filial||'—'}</td><td class="lft dest">${v.pdv}</td><td class="lft">${v.ana2}</td><td>${v.env}</td><td>${v.ana}</td></tr>`;});
+  tp+='</tbody>';
+
+  main.innerHTML=`<div class="view-head"><div><h1>Analistas · Resumo</h1><p>Soma de todo o histórico. Crédito vai para quem realmente analisou no dia (substituições contam para o substituto).</p></div>
+  <div class="datebar"><label>Relatório</label><select id="relana" class="usel" style="padding:6px 8px"><option value="">Selecione o analista</option>${listA.map(([a])=>`<option>${a}</option>`).join("")}</select><button class="qbtn" onclick="gerarRelatorioAnalista()">📄 Gerar PDF</button></div></div>
+  <div class="hint">🔄 = dias em que o analista cobriu a falta de outro. A contagem por PDV mostra todos que participaram de cada ponto.</div>
+  <h1 style="font-size:15px;margin:10px 0 8px">Total por analista</h1>
+  <div class="grid-wrap" style="max-height:38vh"><table><thead><tr class="solo"><th class="lft">Analista</th><th>Itens enviados</th><th>Itens analisados</th><th>Substituições</th></tr></thead>${ta}</table></div>
+  <h1 style="font-size:15px;margin:16px 0 8px">Por ponto de venda</h1>
+  <div class="grid-wrap"><table><thead><tr class="solo"><th>Filial</th><th class="lft">Ponto de venda</th><th class="lft">Analista</th><th>Enviados</th><th>Analisados</th></tr></thead>${tp}</table></div>`;
+}
+
+async function gerarRelatorioAnalista(){
+  const nome=document.getElementById('relana').value;
+  if(!nome){alert('Selecione um analista.');return;}
+  const {data}=await sb.from('env_envios').select('analista,analista_fixo,dest,filial,qtd,ana,data');
+  const rows=(data||[]).filter(r=>r.analista===nome);
+  let totEnv=0,totAna=0,subs=0; const porP={};
+  rows.forEach(r=>{totEnv+=(+r.qtd||0);totAna+=(+r.ana||0);if(r.analista_fixo&&r.analista_fixo!==nome)subs++;
+    const k=(r.filial||'')+'·'+(r.dest||'');(porP[k]=porP[k]||{filial:r.filial,pdv:r.dest,env:0,ana:0});porP[k].env+=(+r.qtd||0);porP[k].ana+=(+r.ana||0);});
+  const pts=Object.values(porP).sort((a,b)=>b.ana-a.ana);
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const linhas=pts.map(p=>`<tr><td class="c">${p.filial||'—'}</td><td class="l">${p.pdv||'—'}</td><td class="c">${p.env}</td><td class="c">${p.ana}</td></tr>`).join('')||'<tr><td colspan="4" class="c">Sem registros.</td></tr>';
+  const w=window.open('','_blank');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Relatório — ${nome}</title>
+  <style>
+    *{box-sizing:border-box;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    body{margin:0;color:#1e293b}
+    .wrap{max-width:820px;margin:0 auto;padding:36px}
+    .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #6366f1;padding-bottom:16px;margin-bottom:24px}
+    .brand{font-size:13px;letter-spacing:2px;color:#6366f1;font-weight:700;text-transform:uppercase}
+    h1{margin:6px 0 0;font-size:26px}
+    .sub{color:#64748b;font-size:13px;margin-top:4px}
+    .cards{display:flex;gap:14px;margin:22px 0}
+    .card{flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:center}
+    .card .n{font-size:30px;font-weight:800;color:#4f46e5}
+    .card .l{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-top:4px}
+    table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+    th{background:#4f46e5;color:#fff;padding:9px 10px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+    th.l,td.l{text-align:left}.c{text-align:center}
+    td{padding:8px 10px;border-bottom:1px solid #eef2f7}
+    tr:nth-child(even) td{background:#f8fafc}
+    .foot{margin-top:26px;color:#94a3b8;font-size:11px;text-align:center}
+    h2{font-size:15px;margin:26px 0 6px}
+    @media print{.noprint{display:none}}
+  </style></head><body><div class="wrap">
+    <div class="top"><div><div class="brand">VX Case · Logística</div><h1>${nome}</h1><div class="sub">Relatório de desempenho · emitido em ${hoje}</div></div></div>
+    <div class="cards">
+      <div class="card"><div class="n">${totEnv}</div><div class="l">Itens enviados</div></div>
+      <div class="card"><div class="n">${totAna}</div><div class="l">Itens analisados</div></div>
+      <div class="card"><div class="n">${pts.length}</div><div class="l">Pontos atendidos</div></div>
+      <div class="card"><div class="n">${subs}</div><div class="l">Substituições</div></div>
+    </div>
+    <h2>Detalhe por ponto de venda</h2>
+    <table><thead><tr><th class="c">Filial</th><th class="l">Ponto de venda</th><th>Enviados</th><th>Analisados</th></tr></thead><tbody>${linhas}</tbody></table>
+    <div class="foot">Documento gerado automaticamente pelo sistema de Controle de Envios · VX Case</div>
+    <div class="noprint" style="text-align:center;margin-top:20px"><button onclick="window.print()" style="padding:10px 22px;border:0;background:#4f46e5;color:#fff;border-radius:8px;font-size:14px;cursor:pointer">Salvar / Imprimir PDF</button></div>
+  </div></body></html>`);
+  w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(e){}},500);
+}
+
+/* ===================== AVULSO (Quotes / Extra, multi-PDV) ===================== */
+function abrirQuotesAvulso(tipo){
+  document.getElementById("qtipo").value=tipo||'Quotes';
+  document.getElementById("qtitle").textContent=(tipo||'Quotes')+' avulso';
+  document.getElementById("qbusca").value="";
+  renderQlista("");
+  document.getElementById("modalq").classList.add("open");
+}
+function abrirExtraAvulso(){abrirQuotesAvulso('Extra');}
+function fecharQuotesAvulso(){document.getElementById("modalq").classList.remove("open");}
+function renderQlista(f){
+  f=(f||"").toLowerCase();
+  const html=destinos.filter(d=>((d.filial||'')+' '+(d.nome||'')).toLowerCase().includes(f))
+    .map(d=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;cursor:pointer"><input type="checkbox" class="qchk" value="${d.id}"><span>${d.filial||''} · ${d.nome}</span></label>`).join("");
+  document.getElementById("qlista").innerHTML=html||'<div class="empty">Nenhum destino.</div>';
+}
+function filtraQ(){renderQlista(document.getElementById("qbusca").value);}
+async function addAvulso(){
+  const tipo=document.getElementById("qtipo").value;
+  const ids=[...document.querySelectorAll('.qchk:checked')].map(c=>+c.value);
+  if(!ids.length){alert("Marque pelo menos um destino.");return;}
+  const novos=[];
+  ids.forEach(id=>{
+    const d=destinos.find(x=>x.id===id); if(!d)return;
+    if(envios.some(r=>r.dest_id===d.id&&r.data===selDate&&r.envio===tipo))return; // já existe
+    novos.push({dest_id:d.id,data:selDate,filial:d.filial,dest:d.nome,grupo:d.grupo,eh_principal:d.eh_principal,envio:tipo,analista:d.analista,analista_fixo:d.analista,transp:transpDe(d,tipo),prazo:prazoDe(d,tipo),quotes:tipo==='Quotes'});
+  });
+  if(!novos.length){alert("Nada a adicionar (já existiam nesse dia).");return;}
+  const {data:ins,error}=await sb.from('env_envios').upsert(novos,{onConflict:'dest_id,data,envio',ignoreDuplicates:true}).select();
+  if(error){alert("Erro: "+error.message);return;}
+  if(ins&&ins.length){ins.forEach(x=>{if(!envios.some(e=>e.id===x.id))envios.push(x);}); logAcao(`adicionou ${ins.length} ${tipo} avulso em ${fmt(selDate)}`);}
+  fecharQuotesAvulso(); drawView();
+}
+
+/* ===================== TRANSPORTADORA POR TIPO ===================== */
+let _transpDestId=null;
+function abrirTranspTipo(id){
+  _transpDestId=id;
+  const d=destinos.find(x=>x.id===id); if(!d)return;
+  const map=d.transp_map||{};
+  const rows=ENVIOS_TIPO.map(t=>{
+    const cur=map[t]||'';
+    const opts=['<option value="">(usa padrão: '+(d.transp||'—')+')</option>'].concat(Object.keys(TRANSP).map(x=>`<option value="${x}" ${x===cur?'selected':''}>${x}</option>`)).join("");
+    return `<div class="fld" style="margin-bottom:8px"><label>${t}</label><select data-tipo="${t}">${opts}</select></div>`;
+  }).join("");
+  document.getElementById("ttbody").innerHTML=rows;
+  document.getElementById("ttnome").textContent=(d.filial||'')+' · '+d.nome;
+  document.getElementById("modaltt").classList.add("open");
+}
+function fecharTranspTipo(){document.getElementById("modaltt").classList.remove("open");}
+async function salvarTranspTipo(){
+  const d=destinos.find(x=>x.id===_transpDestId); if(!d){fecharTranspTipo();return;}
+  const map={};
+  document.querySelectorAll('#ttbody select').forEach(sel=>{const t=sel.getAttribute('data-tipo');if(sel.value)map[t]=sel.value;});
+  const novaTransp = map['Semanal'] || d.transp;      // "Transp." fixa segue o Semanal
+  await sb.from('env_destinos').update({transp_map:map, transp:novaTransp}).eq('id',d.id);
+  d.transp_map=map; d.transp=novaTransp;
+  // reflete nos envios já existentes desse destino (admin)
+  for(const e of envios.filter(x=>x.dest_id===d.id)){
+    const nt = map[e.envio] || novaTransp;
+    if(nt && nt!==e.transp){ e.transp=nt; await sb.from('env_envios').update({transp:nt}).eq('id',e.id); }
+  }
+  await logAcao(`definiu transportadora por tipo em "${d.nome}"`);
+  fecharTranspTipo(); drawView();
+}
+
+/* ===================== MISC ===================== */
+function toggleTheme(){const b=document.body;b.dataset.theme=b.dataset.theme==="dark"?"light":"dark";}
+boot();
+</script>
+</body>
+</html>
